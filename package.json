@@ -1,0 +1,50 @@
+{
+  "name": "@kez-lab/android-worktree",
+  "version": "0.1.0",
+  "description": "High-performance Git worktree and Gradle build optimization CLI for Android projects",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "android-worktree": "./dist/bin/android-worktree.js",
+    "aw": "./dist/bin/android-worktree.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "README.ko.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit"
+  },
+  "keywords": [
+    "android",
+    "gradle",
+    "worktree",
+    "git-worktree",
+    "build-cache",
+    "gradle-daemon",
+    "cli"
+  ],
+  "author": "Kez <kejprogramer0909@gmail.com>",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "commander": "^13.1.0",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "tsup": "^8.4.0",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
