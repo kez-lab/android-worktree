@@ -1,0 +1,48 @@
+name: 🐛 Bug Report
+description: Report an issue or unexpected behavior in android-worktree
+labels: ['bug', 'triage']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out the sections below to help us investigate.
+  - type: input
+    id: version
+    attributes:
+      label: android-worktree Version
+      description: What version of android-worktree are you using? (Run `aw --version`)
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment Info
+      description: OS version, Node version, and Gradle version
+      placeholder: macOS Sequoia (Apple Silicon) / Node v22.17.0 / Gradle 8.7 / AGP 8.5
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the Bug
+      description: A clear and concise description of what happened.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior.
+      placeholder: |
+        1. Run `aw add feature/test`
+        2. Execute `aw build`
+        3. See error ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Doctor Output
+      description: Please attach the output of `aw doctor` or relevant terminal logs.
+      render: shell
