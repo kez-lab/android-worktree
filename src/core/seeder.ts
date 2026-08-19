@@ -149,7 +149,12 @@ export function seedWorktree(options: SeederOptions): SeederResult {
     const success = mode === 'copy' ? copyFileSafe(src, dest) : createSymlinkSafe(src, dest);
 
     if (success) {
-      if (relPath === 'local.properties') {
+      // Copies only. In symlink mode `dest` resolves to the file in the main
+      // repository, so normalising it there writes *through* the link and
+      // silently edits the source the user chose not to duplicate. Verified: a
+      // source `local.properties` without a trailing newline gained one after a
+      // symlink seed.
+      if (mode === 'copy' && relPath === 'local.properties') {
         sanitizeLocalProperties(dest);
       }
       seeded.push({
