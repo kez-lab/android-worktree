@@ -83,6 +83,11 @@ flowchart TD
   - 검증 태스크를 실제로 실행하는 `build`·`check` 같은 태스크에 한해
     불필요한 검증(`-x lint -x testDebugUnitTest`)을 생략합니다. `assemble` 계열은 애초에 검증을
     그래프로 끌어오지 않아 생략할 것이 없고, 프로젝트에 없는 태스크를 제외하려 하면 빌드가 실패합니다.
+- 🎯 **빌드 변형 인식 (`aw variants`, `aw build --variant`)**:
+  - flavor 차원과 빌드 타입으로 AGP가 계산한 변형을 모듈별로 나열합니다.
+  - flavor가 있는 프로젝트에서 `assembleDebug`는 *집계* 태스크입니다. 차원 2개 픽스처 기준
+    215개 태스크를 돌려 APK 4개를 만들고, `--variant freeDevDebug`는 72개로 1개를 만듭니다.
+    한 모듈이 여러 변형을 한 번에 빌드하면 `aw build`가 경고합니다.
 - 🩺 **환경 종합 닥터 (`aw doctor`)**:
   - 현재 떠 있는 Gradle Daemon 프로세스, 전역 빌드 캐시 용량, 연결된 디바이스 상태를 진단합니다.
 - 🧹 **Worktree 생명주기 관리 (`aw list`, `aw remove`, `aw prune`)**:
