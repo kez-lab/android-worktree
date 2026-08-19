@@ -25,6 +25,19 @@ export function passthroughArgs(argv: string[] = process.argv): string[] {
   return separator === -1 ? [] : argv.slice(separator + 1);
 }
 
+/** argv with the `--` tail removed, for handing to commander.
+ *
+ *  Commander must never see Gradle's arguments, because it assigns leftover
+ *  operands positionally and would take the first one as the optional `[path]`:
+ *  `aw build -- --stacktrace` resolved the project directory to
+ *  "--stacktrace", failed to find a wrapper there, and fell back to a bare
+ *  `gradle`. Splitting before parsing also keeps commander's own "too many
+ *  arguments" check working for genuine operand typos. */
+export function argvWithoutPassthrough(argv: string[] = process.argv): string[] {
+  const separator = argv.indexOf('--');
+  return separator === -1 ? argv : argv.slice(0, separator);
+}
+
 export function createCli(): Command {
   const program = new Command();
 
@@ -139,7 +152,10 @@ export function createCli(): Command {
   program
     .command('build [path]')
     .alias('run')
-    .description('Execute optimized Gradle build with machine-wide cache and single-ABI injection')
+    .description(
+      'Execute optimized Gradle build with machine-wide cache and single-ABI injection. ' +
+        'Arguments after `--` are forwarded to Gradle verbatim.'
+    )
     .option('-t, --task <task>', 'Gradle task to execute', 'assembleDebug')
     .option('-a, --abi <abi>', 'Target ABI (arm64-v8a, armeabi-v7a, x86_64, x86, auto, all)', 'auto')
     .option('--no-build-cache', 'Disable Gradle build cache')
@@ -147,11 +163,6 @@ export function createCli(): Command {
     .option('--no-skip-verification', 'Do not skip lint and unit tests')
     .option('--dry-run', 'Print the generated Gradle command without running')
     .allowUnknownOption(true)
-    // Operands after `--` are Gradle's, so commander must not reject them as
-    // excess. `allowUnknownOption` alone was not enough: it permits unknown
-    // *flags* but still enforces the operand count, so `aw build . --stacktrace`
-    // failed with "too many arguments for 'build'".
-    .allowExcessArguments(true)
     .action((targetPath, options) => {
       try {
         const extraArgs = passthroughArgs();
