@@ -13,6 +13,18 @@ import { logger } from './utils/logger.js';
 import { getMainRepoRoot, isGitRepo } from './utils/git.js';
 import type { TargetAbi } from './types/index.js';
 
+/** Everything after `--` is forwarded to Gradle untouched.
+ *
+ *  Read from argv rather than commander's operands because the previous filter
+ *  kept only arguments that did *not* start with `-`, which is exactly backwards
+ *  for a passthrough — every Gradle flag was silently dropped before it could be
+ *  forwarded. Taking the tail after `--` also keeps the optional `[path]`
+ *  operand unambiguous. */
+export function passthroughArgs(argv: string[] = process.argv): string[] {
+  const separator = argv.indexOf('--');
+  return separator === -1 ? [] : argv.slice(separator + 1);
+}
+
 export function createCli(): Command {
   const program = new Command();
 
@@ -38,7 +50,16 @@ export function createCli(): Command {
           process.exit(1);
         }
 
-        logger.heading(`Creating Worktree for branch '${branch}'...`);
+        // A dry run must not describe work it did not do. It previously printed
+        // "Worktree created successfully" and marked every file "(copied)"
+        // while creating nothing at all.
+        const isDryRun = Boolean(options.dryRun);
+
+        logger.heading(
+          isDryRun
+            ? `Previewing worktree creation for branch '${branch}' (dry run, nothing is written)...`
+            : `Creating Worktree for branch '${branch}'...`
+        );
         const result = createWorktree({
           branch,
           path: customPath,
@@ -48,13 +69,23 @@ export function createCli(): Command {
           dryRun: options.dryRun,
         });
 
-        logger.success(`Worktree created successfully at: ${pc.cyan(result.worktree.path)}`);
+        if (isDryRun) {
+          logger.info(`Would create worktree at: ${pc.cyan(result.worktree.path)}`);
+        } else {
+          logger.success(`Worktree created successfully at: ${pc.cyan(result.worktree.path)}`);
+        }
 
         if (result.seededFiles.length > 0) {
-          logger.info(`Seeded ${result.seededFiles.length} secret/config files:`);
+          logger.info(
+            isDryRun
+              ? `Would seed ${result.seededFiles.length} secret/config files:`
+              : `Seeded ${result.seededFiles.length} secret/config files:`
+          );
           for (const s of result.seededFiles) {
-            const statusIcon = s.action === 'copied' || s.action === 'symlinked' ? pc.green('✓') : pc.yellow('•');
-            console.log(`  ${statusIcon} ${s.relativePath} (${pc.dim(s.action)})`);
+            const done = s.action === 'copied' || s.action === 'symlinked';
+            const statusIcon = done && !isDryRun ? pc.green('✓') : pc.yellow('•');
+            const action = isDryRun && done ? `would ${s.action === 'copied' ? 'copy' : 'symlink'}` : s.action;
+            console.log(`  ${statusIcon} ${s.relativePath} (${pc.dim(action)})`);
           }
         }
 
@@ -116,12 +147,14 @@ export function createCli(): Command {
     .option('--no-skip-verification', 'Do not skip lint and unit tests')
     .option('--dry-run', 'Print the generated Gradle command without running')
     .allowUnknownOption(true)
-    .action((targetPath, options, cmd) => {
+    // Operands after `--` are Gradle's, so commander must not reject them as
+    // excess. `allowUnknownOption` alone was not enough: it permits unknown
+    // *flags* but still enforces the operand count, so `aw build . --stacktrace`
+    // failed with "too many arguments for 'build'".
+    .allowExcessArguments(true)
+    .action((targetPath, options) => {
       try {
-        const extraArgs = cmd.args.filter(
-          (arg: string) => !['build', 'run', targetPath].includes(arg) && !arg.startsWith('-')
-        );
-
+        const extraArgs = passthroughArgs();
         const projectDir = targetPath || process.cwd();
         const plan = buildGradleArgs({
           projectDir,
