@@ -63,4 +63,29 @@ describe('Seeder Module', () => {
     expect(fs.existsSync(path.join(targetRoot, 'local.properties'))).toBe(true);
     expect(fs.existsSync(path.join(targetRoot, 'app', 'google-services.json'))).toBe(true);
   });
+
+  // A symlinked seed resolves to the file in the main repository, so any write
+  // to the target edits the source. `--symlink` is chosen precisely to avoid
+  // touching the original, and normalising the trailing newline through the
+  // link broke that promise.
+  it('does not modify the source repository when symlinking', () => {
+    const source = path.join(sourceRoot, 'local.properties');
+    fs.writeFileSync(source, 'sdk.dir=/opt/android', 'utf8');
+
+    seedWorktree({ sourceRoot, targetRoot, mode: 'symlink' });
+
+    expect(fs.readFileSync(source, 'utf8')).toBe('sdk.dir=/opt/android');
+  });
+
+  it('still normalises the trailing newline when copying', () => {
+    const source = path.join(sourceRoot, 'local.properties');
+    fs.writeFileSync(source, 'sdk.dir=/opt/android', 'utf8');
+
+    seedWorktree({ sourceRoot, targetRoot, mode: 'copy' });
+
+    expect(fs.readFileSync(path.join(targetRoot, 'local.properties'), 'utf8')).toBe(
+      'sdk.dir=/opt/android\n'
+    );
+    expect(fs.readFileSync(source, 'utf8')).toBe('sdk.dir=/opt/android');
+  });
 });
