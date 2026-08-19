@@ -80,7 +80,10 @@ flowchart TD
 - 🏎️ **Accelerated Build Runner (`aw build`)**:
   - Enforces machine-wide `--build-cache` reuse.
   - Auto-detects connected Android physical device/emulator via `adb` and injects single ABI.
-  - Skips non-critical verification tasks (`-x lint -x testDebugUnitTest`) for ultra-fast local iterations.
+  - Skips non-critical verification tasks (`-x lint -x testDebugUnitTest`) for tasks that actually
+    run them, such as `build` or `check`. Assemble-style tasks never pull verification into their
+    graph, so nothing is excluded there — and excluding a task the project does not define would
+    abort the build outright.
 - 🩺 **Doctor & Diagnostic Suite (`aw doctor`)**:
   - Displays running Gradle Daemons, build cache size, and connected devices at a glance.
 - 🧹 **Worktree Lifecycle Management (`aw list`, `aw remove`, `aw prune`)**:
