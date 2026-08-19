@@ -139,3 +139,13 @@ export interface DoctorReport {
   connectedDevices: ConnectedDevice[];
   recommendations: string[];
 }
+
+/** A build variant AGP computed from flavor dimensions and build types. */
+export interface VariantInfo {
+  /** e.g. `freeDevDebug`. */
+  name: string;
+  /** Gradle path of the module declaring it, e.g. `:app`. Empty for the root. */
+  module: string;
+  /** Task that builds only this variant, e.g. `:app:assembleFreeDevDebug`. */
+  assembleTask: string;
+}

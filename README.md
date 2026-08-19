@@ -84,6 +84,11 @@ flowchart TD
     run them, such as `build` or `check`. Assemble-style tasks never pull verification into their
     graph, so nothing is excluded there — and excluding a task the project does not define would
     abort the build outright.
+- 🎯 **Variant Awareness (`aw variants`, `aw build --variant`)**:
+  - Lists the variants AGP computes from flavor dimensions and build types, per module.
+  - `assembleDebug` in a flavored project is an *aggregate*: on a two-dimension fixture it runs
+    215 tasks and packages four APKs, where `--variant freeDevDebug` runs 72 and packages one.
+    `aw build` warns when a module would build several variants at once.
 - 🩺 **Doctor & Diagnostic Suite (`aw doctor`)**:
   - Displays running Gradle Daemons, build cache size, and connected devices at a glance.
 - 🧹 **Worktree Lifecycle Management (`aw list`, `aw remove`, `aw prune`)**:

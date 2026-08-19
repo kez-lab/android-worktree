@@ -9,6 +9,13 @@ import {
 } from './core/worktree.js';
 import { seedWorktree } from './core/seeder.js';
 import { buildGradleArgs, executeGradleBuild } from './core/runner.js';
+import {
+  discoverVariants,
+  flavorSpan,
+  mayHaveFlavors,
+  resolveVariant,
+  variantTaskFor,
+} from './core/variants.js';
 import { logger } from './utils/logger.js';
 import { getMainRepoRoot, isGitRepo } from './utils/git.js';
 import type { TargetAbi } from './types/index.js';
@@ -157,6 +164,7 @@ export function createCli(): Command {
         'Arguments after `--` are forwarded to Gradle verbatim.'
     )
     .option('-t, --task <task>', 'Gradle task to execute', 'assembleDebug')
+    .option('-v, --variant <variant>', 'Build a single variant (e.g. freeDevDebug). See `aw variants`.')
     .option('-a, --abi <abi>', 'Target ABI (arm64-v8a, armeabi-v7a, x86_64, x86, auto, all)', 'auto')
     .option('--no-build-cache', 'Disable Gradle build cache')
     .option('--cc, --configuration-cache', 'Enable Gradle configuration cache')
@@ -167,9 +175,39 @@ export function createCli(): Command {
       try {
         const extraArgs = passthroughArgs();
         const projectDir = targetPath || process.cwd();
+
+        // A build-type aggregate such as `assembleDebug` builds every flavor
+        // combination. On a two-dimension project that is 215 tasks and four
+        // APKs where one variant needs 72 and produces one — the opposite of
+        // what single-ABI injection is trying to achieve.
+        let task: string = options.task;
+        if (options.variant) {
+          const resolved = resolveVariant(options.variant, discoverVariants(projectDir));
+          if (!resolved.ok) {
+            logger.error(resolved.reason);
+            for (const c of resolved.candidates) {
+              console.log(`  ${pc.cyan(c.name)} ${pc.dim(c.assembleTask)}`);
+            }
+            process.exit(1);
+          }
+          // Keep the verb the user asked for: `-t installDebug --variant X`
+          // must install X, not assemble it.
+          task = variantTaskFor(options.task, resolved.variant);
+        } else if (/^assemble/i.test(options.task) && mayHaveFlavors(projectDir)) {
+          // Gated on a grep: enumerating variants costs a Gradle invocation and
+          // can only change the advice for projects that declare flavors.
+          for (const { module, variants } of flavorSpan(options.task, discoverVariants(projectDir))) {
+            logger.warn(
+              `'${options.task}' builds ${variants.length} variants in ${module || 'the root project'}: ` +
+                `${variants.map((v) => v.name).join(', ')}.`
+            );
+            logger.info(`Build just one with --variant <name>, or list them with 'aw variants'.`);
+          }
+        }
+
         const plan = buildGradleArgs({
           projectDir,
-          task: options.task,
+          task,
           abi: options.abi as TargetAbi,
           buildCache: options.buildCache,
           configurationCache: options.configurationCache,
@@ -190,7 +228,7 @@ export function createCli(): Command {
         if (!options.dryRun) {
           const res = executeGradleBuild({
             projectDir,
-            task: options.task,
+            task,
             abi: options.abi as TargetAbi,
             buildCache: options.buildCache,
             configurationCache: options.configurationCache,
@@ -270,6 +308,32 @@ export function createCli(): Command {
         });
 
         logger.success(`Successfully seeded ${result.totalFiles} files (${result.totalBytes} bytes).`);
+      } catch (err: any) {
+        logger.error(err.message);
+        process.exit(1);
+      }
+    });
+
+  // Command: variants
+  program
+    .command('variants [path]')
+    .description('List the build variants this project defines')
+    .action((targetPath) => {
+      try {
+        const projectDir = targetPath || process.cwd();
+        logger.heading('Build Variants');
+        const variants = discoverVariants(projectDir);
+
+        if (variants.length === 0) {
+          logger.warn('No variants found. The project may not apply an Android plugin, or Gradle failed.');
+          return;
+        }
+
+        for (const v of variants) {
+          const where = v.module === '' ? '' : pc.dim(` ${v.module}`);
+          console.log(`  ${pc.cyan(v.name)}${where}  ${pc.dim(v.assembleTask)}`);
+        }
+        console.log(`\n${pc.dim(`Build one with: aw build --variant ${variants[0]?.name}`)}`);
       } catch (err: any) {
         logger.error(err.message);
         process.exit(1);

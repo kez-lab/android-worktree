@@ -3,6 +3,7 @@ export * from './core/seeder.js';
 export * from './core/daemon.js';
 export * from './core/device.js';
 export * from './core/runner.js';
+export * from './core/variants.js';
 export * from './core/worktree.js';
 export * from './utils/fs.js';
 export * from './utils/git.js';
