@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { parseVariants, flavorSpan, resolveVariant, assembleTaskFor } from '../src/core/variants.js';
+import {
+  parseVariants,
+  flavorSpan,
+  resolveVariant,
+  assembleTaskFor,
+  variantTaskFor,
+} from '../src/core/variants.js';
 
 // Verbatim shape of `./gradlew tasks --all -q` on a two-dimension fixture
 // (tier: free/paid, env: dev/stage) with a library module alongside the app.
@@ -85,11 +91,12 @@ app:assembleDebug - Assembles main output for variant debug
 describe('resolveVariant', () => {
   const variants = parseVariants(TASKS_OUTPUT);
 
-  it('resolves a unique name to its module-qualified task', () => {
-    expect(resolveVariant('freeDevDebug', variants)).toEqual({
-      ok: true,
-      task: ':app:assembleFreeDevDebug',
-    });
+  it('resolves a unique name to its module-qualified variant', () => {
+    const result = resolveVariant('freeDevDebug', variants);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.variant.assembleTask).toBe(':app:assembleFreeDevDebug');
+    }
   });
 
   it('rejects an unknown name and offers the real ones', () => {
@@ -103,10 +110,21 @@ describe('resolveVariant', () => {
   // Discovery can fail (no wrapper, Gradle error); guessing the task and
   // letting Gradle report it beats refusing to build.
   it('falls back to the unqualified task when discovery found nothing', () => {
-    expect(resolveVariant('freeDevDebug', [])).toEqual({
-      ok: true,
-      task: 'assembleFreeDevDebug',
-    });
+    const result = resolveVariant('freeDevDebug', []);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.variant.assembleTask).toBe('assembleFreeDevDebug');
+    }
+  });
+
+  // `--variant` used to resolve straight to the assemble task, so an install or
+  // bundle request was silently downgraded to an assemble and reported as done.
+  it('carries the requested verb onto the variant', () => {
+    const freeDevDebug = variants.find((v) => v.name === 'freeDevDebug');
+    expect(freeDevDebug).toBeDefined();
+    expect(variantTaskFor('installDebug', freeDevDebug!)).toBe(':app:installFreeDevDebug');
+    expect(variantTaskFor('bundleRelease', freeDevDebug!)).toBe(':app:bundleFreeDevDebug');
+    expect(variantTaskFor('assembleDebug', freeDevDebug!)).toBe(':app:assembleFreeDevDebug');
   });
 
   it('capitalises the variant for the fallback task name', () => {

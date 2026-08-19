@@ -81,8 +81,20 @@ export function assembleTaskFor(variant: string): string {
 }
 
 export type VariantResolution =
-  | { ok: true; task: string }
+  | { ok: true; variant: VariantInfo }
   | { ok: false; reason: string; candidates: VariantInfo[] };
+
+/** Compose the task that applies `verbTask`'s action to one variant.
+ *
+ *  The verb has to be carried over, not assumed. `--variant` used to resolve
+ *  straight to the assemble task, so `-t installDebug --variant freeDevDebug`
+ *  silently assembled instead of installing, and `-t bundleRelease` produced an
+ *  APK where an AAB was asked for — both reported as success. */
+export function variantTaskFor(verbTask: string, variant: VariantInfo): string {
+  const verb = /^[a-z]+/.exec(verbTask)?.[0] ?? 'assemble';
+  const name = `${variant.name.charAt(0).toUpperCase()}${variant.name.slice(1)}`;
+  return variant.module === '' ? `${verb}${name}` : `${variant.module}:${verb}${name}`;
+}
 
 /** Resolve `--variant` against what the project defines.
  *
@@ -91,14 +103,14 @@ export type VariantResolution =
  *  module would look like a successful build of the wrong thing. */
 export function resolveVariant(variant: string, variants: VariantInfo[]): VariantResolution {
   if (variants.length === 0) {
-    // Discovery unavailable — fall back to the unqualified task and let Gradle
-    // report it if the name is wrong.
-    return { ok: true, task: assembleTaskFor(variant) };
+    // Discovery unavailable — carry the name through unqualified and let Gradle
+    // report it if it is wrong.
+    return { ok: true, variant: { name: variant, module: '', assembleTask: assembleTaskFor(variant) } };
   }
 
   const matches = variants.filter((v) => v.name.toLowerCase() === variant.toLowerCase());
   if (matches.length === 1) {
-    return { ok: true, task: (matches[0] as VariantInfo).assembleTask };
+    return { ok: true, variant: matches[0] as VariantInfo };
   }
   if (matches.length === 0) {
     return { ok: false, reason: `Unknown variant '${variant}'.`, candidates: variants };

@@ -9,7 +9,13 @@ import {
 } from './core/worktree.js';
 import { seedWorktree } from './core/seeder.js';
 import { buildGradleArgs, executeGradleBuild } from './core/runner.js';
-import { discoverVariants, flavorSpan, mayHaveFlavors, resolveVariant } from './core/variants.js';
+import {
+  discoverVariants,
+  flavorSpan,
+  mayHaveFlavors,
+  resolveVariant,
+  variantTaskFor,
+} from './core/variants.js';
 import { logger } from './utils/logger.js';
 import { getMainRepoRoot, isGitRepo } from './utils/git.js';
 import type { TargetAbi } from './types/index.js';
@@ -184,7 +190,9 @@ export function createCli(): Command {
             }
             process.exit(1);
           }
-          task = resolved.task;
+          // Keep the verb the user asked for: `-t installDebug --variant X`
+          // must install X, not assemble it.
+          task = variantTaskFor(options.task, resolved.variant);
         } else if (/^assemble/i.test(options.task) && mayHaveFlavors(projectDir)) {
           // Gated on a grep: enumerating variants costs a Gradle invocation and
           // can only change the advice for projects that declare flavors.
